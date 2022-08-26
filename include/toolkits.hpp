@@ -30,3 +30,4 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     const VkDebugUtilsMessengerCallbackDataEXT* p_callback_data,
     void* p_user_data);
 vk::DebugUtilsMessengerCreateInfoEXT get_messenger_create_info();
+bool is_device_suitable(const vk::PhysicalDevice& device);

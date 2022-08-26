@@ -1,10 +1,10 @@
 add_library(
-    validation
-    validation.cpp
+    toolkits
+    toolkits.cpp
 )
 
 target_link_libraries(
-    validation
+    toolkits
     PRIVATE
         glfw
         ${Vulkan_LIBRARY}
@@ -18,7 +18,7 @@ add_library(
 target_link_libraries(
     app
     PRIVATE
-        validation
+        toolkits
         glfw
         ${Vulkan_LIBRARY}
 )

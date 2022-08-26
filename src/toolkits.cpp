@@ -1,4 +1,4 @@
-#include <validation.hpp>
+#include <toolkits.hpp>
 #include <GLFW/glfw3.h>
 #include <iostream>
 
@@ -86,4 +86,8 @@ vk::DebugUtilsMessengerCreateInfoEXT get_messenger_create_info() {
             .setMessageType(type)
             .setPfnUserCallback(debug_callback)
             .setPUserData(nullptr);
+}
+
+bool is_device_suitable(const vk::PhysicalDevice& device) {
+    return true;
 }

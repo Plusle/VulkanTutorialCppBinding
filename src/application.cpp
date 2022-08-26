@@ -1,8 +1,5 @@
 #include <application.hpp>
-#include <validation.hpp>
-
-
-
+#include <toolkits.hpp>
 
 void Application::run() {
     init();
@@ -45,6 +42,7 @@ void Application::cleanup() {
 void Application::init_vulkan() {
     create_instance();
     setup_debugger();
+    select_physical_device();
 }
 
 void Application::setup_debugger() {
@@ -93,4 +91,19 @@ void Application::create_instance() {
     m_inst = std::move(inst);
 }
 
+void Application::select_physical_device() {
+    auto [ result, available_devices ] = m_inst.enumeratePhysicalDevices();
+    if (result != vk::Result::eSuccess)
+        throw std::runtime_error("Can't find an available GPU");
+
+    for (const auto& device : available_devices) {
+        if (is_device_suitable(device)) {
+            m_phy_device = device;
+            break;
+        }
+    }
+
+    if (!m_phy_device)
+        throw std::runtime_error("Can't find a suitable GPU");
+}
 

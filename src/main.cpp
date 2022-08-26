@@ -5,8 +5,8 @@ int main() {
     Application app;
     try {
         app.run();
-    } catch(...) {
-        std::cout << "Error\n";
+    } catch(std::exception& e) {
+        std::cout << e.what() << '\n';
         return EXIT_FAILURE;
     }
 
