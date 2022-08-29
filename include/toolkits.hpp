@@ -2,6 +2,7 @@
 
 #define VULKAN_HPP_NO_EXCEPTIONS
 #include <vulkan/vulkan.hpp>
+#include <optional>
 
 const std::vector<const char*> validation_layers = {
     "VK_LAYER_KHRONOS_validation"
@@ -13,7 +14,12 @@ const std::vector<const char*> validation_layers = {
     const bool enable_validation_layers = true;
 #endif
 
-
+struct QueueFamilyIndices {
+    static QueueFamilyIndices find_queue_families(const vk::PhysicalDevice&);
+    std::optional<uint32_t> graphics;
+    std::optional<uint32_t> present;
+    bool satisfied_all() const;
+};
 
 VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugUtilsMessengerEXT(VkInstance instance,
                                                               const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,

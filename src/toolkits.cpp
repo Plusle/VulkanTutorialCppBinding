@@ -5,6 +5,32 @@
 PFN_vkCreateDebugUtilsMessengerEXT pfnVkCreateDebugUtilsMessengerEXT;
 PFN_vkDestroyDebugUtilsMessengerEXT pfnVkDestroyDebugUtilsMessengerEXT;
 
+QueueFamilyIndices QueueFamilyIndices::find_queue_families(const vk::PhysicalDevice& phy_device) {
+    QueueFamilyIndices indices;
+
+    std::vector<vk::QueueFamilyProperties> queue_families
+        = phy_device.getQueueFamilyProperties();
+    
+    uint32_t idx = 0;
+    for (const auto& queue_family : queue_families) {
+        if (queue_family.queueFlags & vk::QueueFlagBits::eGraphics) {
+            indices.graphics = idx;
+        }
+
+
+        if (indices.satisfied_all())
+            break;
+            
+        ++idx;
+    }
+
+    return indices;
+}
+
+bool QueueFamilyIndices::satisfied_all() const {
+    return graphics.has_value() && present.has_value();
+}
+
 VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugUtilsMessengerEXT(VkInstance instance,
                                                               const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
                                                               const VkAllocationCallbacks *pAllocator,
@@ -89,5 +115,6 @@ vk::DebugUtilsMessengerCreateInfoEXT get_messenger_create_info() {
 }
 
 bool is_device_suitable(const vk::PhysicalDevice& device) {
-    return true;
+    QueueFamilyIndices indices = QueueFamilyIndices::find_queue_families(device);
+    return indices.satisfied_all();
 }
