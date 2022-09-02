@@ -46,7 +46,10 @@ void Application::cleanup() {
 void Application::init_vulkan() {
     create_instance();
     setup_debugger();
+    create_surface();
     select_physical_device();
+    create_device();
+    create_swapchain();
 }
 
 void Application::setup_debugger() {
@@ -102,7 +105,7 @@ void Application::select_physical_device() {
         throw std::runtime_error("Can't find an available GPU");
 
     for (const auto& device : available_devices) {
-        if (is_device_suitable(device)) {
+        if (is_device_suitable(device, m_surface)) {
             m_phy_device = device;
             break;
         }
@@ -113,7 +116,7 @@ void Application::select_physical_device() {
 }
 
 void Application::create_device() {
-    QueueFamilyIndices indices = QueueFamilyIndices::find_queue_families(m_phy_device);
+    QueueFamilyIndices indices = QueueFamilyIndices::find_queue_families(m_phy_device, m_surface);
 
     std::vector<vk::DeviceQueueCreateInfo> queue_create_infos;
     std::set<uint32_t> unique_queue_families = { indices.graphics.value(), indices.present.value() };
@@ -127,14 +130,14 @@ void Application::create_device() {
         };
 
         queue_create_infos.emplace_back(std::move(queue_create_info));
-        
     }
 
     vk::PhysicalDeviceFeatures phy_device_features{};
     vk::DeviceCreateInfo device_create_info {
         .queueCreateInfoCount = static_cast<uint32_t>(queue_create_infos.size()),
         .pQueueCreateInfos = queue_create_infos.data(),
-        .enabledExtensionCount = 0,
+        .enabledExtensionCount = static_cast<uint32_t>(device_extensions.size()),
+        .ppEnabledExtensionNames = device_extensions.data(),
         .pEnabledFeatures = &phy_device_features
     };
     
@@ -168,3 +171,34 @@ void Application::create_surface() {
     }
     m_surface = std::move(surface);
 }
+
+void Application::create_swapchain() {
+    SwapChainSupportDetails details = query_swapchain_support(m_phy_device, m_surface);
+    vk::SurfaceFormatKHR format = choose_surface_format(details.formats);
+    vk::PresentModeKHR present = choose_present_mode(details.present_modes);
+    vk::Extent2D extent = choose_extent(details.capabilities);
+
+    uint32_t image_count = details.capabilities.minImageCount + 1;
+
+    if (details.capabilities.maxImageCount > 0 && image_count > details.capabilities.maxImageCount) 
+        image_count = details.capabilities.maxImageCount;
+    
+    vk::SwapchainCreateInfoKHR swapchain_create_info {
+        .surface = m_surface,
+        .minImageCount = image_count,
+        .imageFormat = format.format,
+        .imageColorSpace = format.colorSpace,
+        .imageExtent = extent,
+        .imageArrayLayers = 1,
+        .imageUsage = vk::ImageUsageFlagBits::eColorAttachment
+    };
+
+    QueueFamilyIndices indices = QueueFamilyIndices::find_queue_families(m_phy_device, m_surface);
+    uint32_t queue_family_indices[] = {
+        indices.graphics.value(),
+        indices.present.value()
+    };
+
+
+}
+

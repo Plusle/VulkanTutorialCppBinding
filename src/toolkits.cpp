@@ -1,22 +1,29 @@
 #include <toolkits.hpp>
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include <set>
+#include <algorithm>
 
 PFN_vkCreateDebugUtilsMessengerEXT pfnVkCreateDebugUtilsMessengerEXT;
 PFN_vkDestroyDebugUtilsMessengerEXT pfnVkDestroyDebugUtilsMessengerEXT;
 
-QueueFamilyIndices QueueFamilyIndices::find_queue_families(const vk::PhysicalDevice& phy_device) {
+QueueFamilyIndices QueueFamilyIndices::find_queue_families(const vk::PhysicalDevice& phy_device, const vk::SurfaceKHR& surface) {
     QueueFamilyIndices indices;
 
     std::vector<vk::QueueFamilyProperties> queue_families
         = phy_device.getQueueFamilyProperties();
-    
+
     uint32_t idx = 0;
     for (const auto& queue_family : queue_families) {
         if (queue_family.queueFlags & vk::QueueFlagBits::eGraphics) {
             indices.graphics = idx;
         }
-
+        
+        vk::Bool32 support;
+        auto result = phy_device.getSurfaceSupportKHR(idx, surface, &support);
+        if (support) {
+            indices.present = idx;
+        }
 
         if (indices.satisfied_all())
             break;
@@ -114,7 +121,84 @@ vk::DebugUtilsMessengerCreateInfoEXT get_messenger_create_info() {
             .setPUserData(nullptr);
 }
 
-bool is_device_suitable(const vk::PhysicalDevice& device) {
-    QueueFamilyIndices indices = QueueFamilyIndices::find_queue_families(device);
-    return indices.satisfied_all();
+bool is_device_suitable(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface) {
+// bool is_device_suitable(const vk::PhysicalDevice& device) {
+    QueueFamilyIndices indices = QueueFamilyIndices::find_queue_families(device, surface);
+    bool extensions_support = check_device_extensions_support(device);
+    bool swapchain_adequate = false;
+    if (extensions_support) {
+        SwapChainSupportDetails support = query_swapchain_support(device, surface);
+        swapchain_adequate = !support.formats.empty() && !support.present_modes.empty();     
+        // std::cout << "Formats: " << support.formats.size() << '\n';   
+        // for (const auto& format : support.formats) {
+        //     std::cout << to_string(format.format) << '\n';
+        // }
+    }
+    return indices.satisfied_all() && extensions_support && swapchain_adequate;
+}
+
+bool check_device_extensions_support(const vk::PhysicalDevice& device) {
+    auto [ result, extensions ] = device.enumerateDeviceExtensionProperties();
+    if (result != vk::Result::eSuccess) 
+        throw std::runtime_error("Can't find available extension");
+
+    std::set<std::string> required_extensions(device_extensions.begin(), device_extensions.end());
+    for (const auto& extension : extensions) {
+        required_extensions.erase(extension.extensionName);
+    }
+
+    return required_extensions.empty();
+}
+
+SwapChainSupportDetails query_swapchain_support(const vk::PhysicalDevice& phy_device, const vk::SurfaceKHR& surface) {
+    SwapChainSupportDetails details;
+
+    auto [ result1, capabilities ] = phy_device.getSurfaceCapabilitiesKHR(surface);
+    if (vk::Result::eSuccess != result1)
+        throw std::runtime_error("Capability can not be accessed");
+    details.capabilities = std::move(capabilities);
+
+    auto [ result2, formats ] = phy_device.getSurfaceFormatsKHR(surface);
+    if (vk::Result::eSuccess != result2) 
+        throw std::runtime_error("Surface format can not be accessed");
+    details.formats = std::move(formats);
+
+    auto [ result3, modes ] = phy_device.getSurfacePresentModesKHR(surface);
+    if (vk::Result::eSuccess != result3) 
+        throw std::runtime_error("Present mode can not be accessed");
+    details.present_modes = std::move(modes);
+
+    return details;
+}
+
+vk::SurfaceFormatKHR choose_surface_format(const std::vector<vk::SurfaceFormatKHR>& formats) {
+    for (const auto& format : formats) {
+        if (format.format == vk::Format::eR8G8B8A8Srgb && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) 
+            return format;
+    }
+    return *formats.cbegin();
+}
+
+vk::PresentModeKHR choose_present_mode(const std::vector<vk::PresentModeKHR>& modes) {
+    for (const auto& mode : modes) {
+        if (mode == vk::PresentModeKHR::eMailbox)
+            return mode;
+    }
+    return vk::PresentModeKHR::eFifo;
+}
+
+vk::Extent2D choose_extent(const vk::SurfaceCapabilitiesKHR& capabilities, GLFWwindow* window) {
+    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+        return capabilities.currentExtent;
+    } else {
+        int32_t width, height;
+        glfwGetFramebufferSize(window, &width, &height);
+        vk::Extent2D extent {
+            static_cast<uint32_t>(width),
+            static_cast<uint32_t>(height)
+        };
+        extent.width = std::clamp(extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+        extent.height = std::clamp(extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+        return extent;
+    }
 }
