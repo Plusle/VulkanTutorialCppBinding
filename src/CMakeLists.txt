@@ -1,6 +1,6 @@
 add_library(
     toolkits
-    toolkits.cpp
+    toolkits.cxx
 )
 
 target_link_libraries(
@@ -12,7 +12,7 @@ target_link_libraries(
 
 add_library(
     app
-    application.cpp
+    application.cxx
 )
 
 target_link_libraries(
@@ -25,7 +25,7 @@ target_link_libraries(
 
 add_executable(
     main
-    main.cpp
+    main.cxx
 )
 
 target_link_libraries(
