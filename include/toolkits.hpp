@@ -1,7 +1,6 @@
 #pragma once
 
-#define VULKAN_HPP_NO_EXCEPTIONS
-#include <vulkan/vulkan.hpp>
+#include <vk.hpp>
 #include <optional>
 
 const std::vector<const char*> validation_layers = {
@@ -49,6 +48,7 @@ vk::DebugUtilsMessengerCreateInfoEXT get_messenger_create_info();
 bool is_device_suitable(const vk::PhysicalDevice& device, const vk::SurfaceKHR& surface);
 bool check_device_extensions_support(const vk::PhysicalDevice& device);
 SwapChainSupportDetails query_swapchain_support(const vk::PhysicalDevice& phy_device, const vk::SurfaceKHR& surface);
+
 vk::SurfaceFormatKHR choose_surface_format(const std::vector<vk::SurfaceFormatKHR>& formats);
 vk::PresentModeKHR choose_present_mode(const std::vector<vk::PresentModeKHR>& modes);
-vk::Extent2D choose_extent(const vk::SurfaceCapabilitiesKHR& capabilities);
+vk::Extent2D choose_extent(const vk::SurfaceCapabilitiesKHR& capabilities, GLFWwindow* window);

@@ -1,15 +1,6 @@
 #pragma once
 
-#define VK_USE_PLATFORM_WIN32_KHR
-
-#define GLFW_INCLUDE_VULKAN
-#include <glfw/glfw3.h>
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3native.h>
-#define VULKAN_HPP_NO_EXCEPTIONS
-#define VULKAN_HPP_TYPESAFE_CONVERSION
-#define VULKAN_HPP_NO_CONSTRUCTORS
-#include <vulkan/vulkan.hpp>
+#include <vk.hpp>
 #include <iostream>
 #include <optional>
 
@@ -32,6 +23,10 @@ private:
     void create_swapchain();
 
 
+    // vk::SurfaceFormatKHR choose_surface_format(const std::vector<vk::SurfaceFormatKHR>& formats);
+    // vk::PresentModeKHR choose_present_mode(const std::vector<vk::PresentModeKHR>& modes);
+    // vk::Extent2D choose_extent(const vk::SurfaceCapabilitiesKHR& capabilities);
+
 
     GLFWwindow* m_window;
     vk::Instance m_inst;
@@ -40,4 +35,8 @@ private:
     vk::Device m_device;
     vk::Queue m_queue;
     vk::SurfaceKHR m_surface;
+    vk::SwapchainKHR m_swapchain;
+    vk::SurfaceFormatKHR m_format;
+    vk::Extent2D m_extent;
+    std::vector<vk::Image> m_images;
 };

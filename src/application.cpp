@@ -1,6 +1,8 @@
 #include <application.hpp>
 #include <toolkits.hpp>
 
+#include <cstdint>
+#include <limits>
 #include <set>
 
 void Application::run() {
@@ -23,6 +25,9 @@ void Application::init_glfw() {
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
     m_window = glfwCreateWindow(width, height, "Vulkan Window", nullptr, nullptr);
+    int w, h;
+    glfwGetWindowSize(m_window, &w, &h);
+    std::cout << "w:" << w << " h:" << h << "\n";
 }
 
 void Application::mainloop() {
@@ -35,6 +40,7 @@ void Application::cleanup() {
     if (enable_validation_layers) {
         m_inst.destroyDebugUtilsMessengerEXT(m_db_messenger);
     }
+    m_device.destroySwapchainKHR(m_swapchain);
     m_device.destroy();
     m_inst.destroySurfaceKHR(m_surface);
     m_inst.destroy();
@@ -174,9 +180,10 @@ void Application::create_surface() {
 
 void Application::create_swapchain() {
     SwapChainSupportDetails details = query_swapchain_support(m_phy_device, m_surface);
+
     vk::SurfaceFormatKHR format = choose_surface_format(details.formats);
     vk::PresentModeKHR present = choose_present_mode(details.present_modes);
-    vk::Extent2D extent = choose_extent(details.capabilities);
+    vk::Extent2D extent = choose_extent(details.capabilities, m_window);
 
     uint32_t image_count = details.capabilities.minImageCount + 1;
 
@@ -199,6 +206,32 @@ void Application::create_swapchain() {
         indices.present.value()
     };
 
+    if (indices.graphics != indices.present) {
+        swapchain_create_info
+            .setImageSharingMode(vk::SharingMode::eConcurrent)
+            .setQueueFamilyIndexCount(2)
+            .setPQueueFamilyIndices(queue_family_indices);
+    } else {
+        swapchain_create_info
+            .setImageSharingMode(vk::SharingMode::eExclusive)
+            .setQueueFamilyIndexCount(0)
+            .setPQueueFamilyIndices(nullptr);
+    }
 
+    swapchain_create_info
+        .setPreTransform(details.capabilities.currentTransform)
+        .setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque)
+        .setPresentMode(present)
+        .setClipped(static_cast<vk::Bool32>(true));
+
+    auto [ result1, sc ] = m_device.createSwapchainKHR(swapchain_create_info);
+    if (result1 != vk::Result::eSuccess)
+        throw std::runtime_error(to_string(result1));
+    m_swapchain = std::move(sc);
+    m_extent = extent;
+    m_format = format;
+    auto [ result2, imgs ] = m_device.getSwapchainImagesKHR(m_swapchain);\
+    if (result2 != vk::Result::eSuccess)
+        throw std::runtime_error(to_string(result2));
+    m_images = std::move(imgs);
 }
-

@@ -1,8 +1,6 @@
 #include <toolkits.hpp>
-#include <GLFW/glfw3.h>
 #include <iostream>
 #include <set>
-#include <algorithm>
 
 PFN_vkCreateDebugUtilsMessengerEXT pfnVkCreateDebugUtilsMessengerEXT;
 PFN_vkDestroyDebugUtilsMessengerEXT pfnVkDestroyDebugUtilsMessengerEXT;
@@ -129,10 +127,6 @@ bool is_device_suitable(const vk::PhysicalDevice& device, const vk::SurfaceKHR& 
     if (extensions_support) {
         SwapChainSupportDetails support = query_swapchain_support(device, surface);
         swapchain_adequate = !support.formats.empty() && !support.present_modes.empty();     
-        // std::cout << "Formats: " << support.formats.size() << '\n';   
-        // for (const auto& format : support.formats) {
-        //     std::cout << to_string(format.format) << '\n';
-        // }
     }
     return indices.satisfied_all() && extensions_support && swapchain_adequate;
 }
@@ -161,22 +155,26 @@ SwapChainSupportDetails query_swapchain_support(const vk::PhysicalDevice& phy_de
     auto [ result2, formats ] = phy_device.getSurfaceFormatsKHR(surface);
     if (vk::Result::eSuccess != result2) 
         throw std::runtime_error("Surface format can not be accessed");
+    std::cout << "format size: " << formats.size() << "\n";
     details.formats = std::move(formats);
 
     auto [ result3, modes ] = phy_device.getSurfacePresentModesKHR(surface);
     if (vk::Result::eSuccess != result3) 
         throw std::runtime_error("Present mode can not be accessed");
+    std::cout << "mode size: " << modes.size() << "\n";
     details.present_modes = std::move(modes);
 
     return details;
 }
 
+
 vk::SurfaceFormatKHR choose_surface_format(const std::vector<vk::SurfaceFormatKHR>& formats) {
     for (const auto& format : formats) {
-        if (format.format == vk::Format::eR8G8B8A8Srgb && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) 
+        if (format.format == vk::Format::eR8G8B8A8Srgb && format.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear) { 
             return format;
+        }
     }
-    return *formats.cbegin();
+    return formats[0];
 }
 
 vk::PresentModeKHR choose_present_mode(const std::vector<vk::PresentModeKHR>& modes) {
@@ -188,7 +186,10 @@ vk::PresentModeKHR choose_present_mode(const std::vector<vk::PresentModeKHR>& mo
 }
 
 vk::Extent2D choose_extent(const vk::SurfaceCapabilitiesKHR& capabilities, GLFWwindow* window) {
-    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+    // auto max = std::numeric_limits<uint32_t>::max();
+    if (capabilities.currentExtent.width 
+        != (std::numeric_limits<uint32_t>::max)()) {
+            // != 0) {
         return capabilities.currentExtent;
     } else {
         int32_t width, height;
