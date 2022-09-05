@@ -52,3 +52,5 @@ SwapChainSupportDetails query_swapchain_support(const vk::PhysicalDevice& phy_de
 vk::SurfaceFormatKHR choose_surface_format(const std::vector<vk::SurfaceFormatKHR>& formats);
 vk::PresentModeKHR choose_present_mode(const std::vector<vk::PresentModeKHR>& modes);
 vk::Extent2D choose_extent(const vk::SurfaceCapabilitiesKHR& capabilities, GLFWwindow* window);
+std::vector<char> read_file(const char* filename);
+vk::ShaderModule create_shader_module(const vk::Device& device, const std::vector<char>& buffer);

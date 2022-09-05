@@ -21,6 +21,8 @@ private:
     void create_device();
     void create_surface();
     void create_swapchain();
+    void create_image_view();
+    void create_pipeline();
 
 
     // vk::SurfaceFormatKHR choose_surface_format(const std::vector<vk::SurfaceFormatKHR>& formats);
@@ -36,7 +38,9 @@ private:
     vk::Queue m_queue;
     vk::SurfaceKHR m_surface;
     vk::SwapchainKHR m_swapchain;
-    vk::SurfaceFormatKHR m_format;
+    vk::Format m_format;
     vk::Extent2D m_extent;
     std::vector<vk::Image> m_images;
+    std::vector<vk::ImageView> m_image_views;
+    vk::Pipeline m_pipeline;
 };

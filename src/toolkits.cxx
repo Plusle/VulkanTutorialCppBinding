@@ -1,5 +1,6 @@
 #include <toolkits.hpp>
 #include <iostream>
+#include <fstream>
 #include <set>
 
 PFN_vkCreateDebugUtilsMessengerEXT pfnVkCreateDebugUtilsMessengerEXT;
@@ -202,4 +203,28 @@ vk::Extent2D choose_extent(const vk::SurfaceCapabilitiesKHR& capabilities, GLFWw
         extent.height = std::clamp(extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
         return extent;
     }
+}
+
+std::vector<char> read_file(const char* filename) {
+    std::ifstream file(filename, std::ios::ate | std::ios::binary);
+    if (!file.is_open())
+        throw std::runtime_error("Can't open file " + std::string(filename));
+    
+    size_t file_size = static_cast<size_t>(file.tellg());
+    std::vector<char> buffer(file_size);
+    file.seekg(0);
+    file.read(buffer.data(), file_size);
+    return buffer;
+}
+
+vk::ShaderModule create_shader_module(const vk::Device& device, const std::vector<char>& buffer) {
+    vk::ShaderModuleCreateInfo sm_create_info {
+        .codeSize = buffer.size(),
+        .pCode = reinterpret_cast<const uint32_t*>(buffer.data())
+    };
+
+    auto [ result, sm ] = device.createShaderModule(sm_create_info);
+    if (result != vk::Result::eSuccess)
+        throw std::runtime_error(to_string(result));
+    return sm;
 }

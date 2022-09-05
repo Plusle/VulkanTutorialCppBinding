@@ -37,9 +37,12 @@ void Application::mainloop() {
 }
 
 void Application::cleanup() {
-    if (enable_validation_layers) {
+    if (enable_validation_layers) 
         m_inst.destroyDebugUtilsMessengerEXT(m_db_messenger);
-    }
+
+    for (const auto& image_view : m_image_views)
+        m_device.destroyImageView(image_view);
+
     m_device.destroySwapchainKHR(m_swapchain);
     m_device.destroy();
     m_inst.destroySurfaceKHR(m_surface);
@@ -56,6 +59,8 @@ void Application::init_vulkan() {
     select_physical_device();
     create_device();
     create_swapchain();
+    create_image_view();
+    create_pipeline();
 }
 
 void Application::setup_debugger() {
@@ -229,9 +234,58 @@ void Application::create_swapchain() {
         throw std::runtime_error(to_string(result1));
     m_swapchain = std::move(sc);
     m_extent = extent;
-    m_format = format;
+    m_format = format.format;
+
     auto [ result2, imgs ] = m_device.getSwapchainImagesKHR(m_swapchain);\
     if (result2 != vk::Result::eSuccess)
         throw std::runtime_error(to_string(result2));
     m_images = std::move(imgs);
+}
+
+void Application::create_image_view() {
+    m_image_views.resize(m_images.size());
+    for (auto i = 0; i < m_image_views.size(); ++i) {
+        vk::ImageViewCreateInfo im_create_info {
+            .image = m_images[i],
+            .viewType = vk::ImageViewType::e2D,
+            .format = m_format,
+            .components = vk::ComponentMapping { 
+                vk::ComponentSwizzle::eR, 
+                vk::ComponentSwizzle::eG, 
+                vk::ComponentSwizzle::eB, 
+                vk::ComponentSwizzle::eA 
+            },
+            .subresourceRange = vk::ImageSubresourceRange {
+                .aspectMask = vk::ImageAspectFlagBits::eColor,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }           
+        };
+        auto [ result, view ] = m_device.createImageView(im_create_info);
+        if (result != vk::Result::eSuccess) 
+            throw std::runtime_error(to_string(result));
+        m_image_views[i] = std::move(view);
+    }
+}
+
+void Application::create_pipeline() {
+    std::vector<char> vert_shader = read_file("../shader/binary/vert.spv");
+    std::vector<char> frag_shader = read_file("../shader/binary/frag.spv");
+    vk::ShaderModule vs = create_shader_module(m_device, vert_shader);
+    vk::ShaderModule fs = create_shader_module(m_device, frag_shader);
+
+    vk::PipelineShaderStageCreateInfo stagets[] = {
+        vk::PipelineShaderStageCreateInfo {
+            .stage = vk::ShaderStageFlagBits::eVertex,
+            .module = vs,
+            .pName = "main"
+        },
+        vk::PipelineShaderStageCreateInfo {
+            .stage = vk::ShaderStageFlagBits::eFragment,
+            .module = fs,
+            .pName = "main"
+        }
+    };
 }
