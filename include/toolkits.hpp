@@ -37,7 +37,7 @@ VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugUtilsMessengerEXT(VkInstance instanc
 VKAPI_ATTR void VKAPI_CALL vkDestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT messenger,
                                                            VkAllocationCallbacks const *pAllocator);
 void VkToolMakeDebugUtilsMessengerEXT(const vk::Instance& inst);
-vk::Result check_validation_layers();
+bool check_validation_layers();
 std::vector<const char*> get_required_extensions();
 VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     VkDebugUtilsMessageSeverityFlagBitsEXT severity,

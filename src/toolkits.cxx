@@ -58,11 +58,9 @@ void VkToolMakeDebugUtilsMessengerEXT(const vk::Instance& inst) {
         inst.getProcAddr("vkDestroyDebugUtilsMessengerEXT"));
 }
 
-vk::Result check_validation_layers() {
+bool check_validation_layers() {
     uint32_t layer_count = 0;
-    auto [ result, available_layers ] = vk::enumerateInstanceLayerProperties();
-    if (result != vk::Result::eSuccess)
-        return result;
+    auto available_layers = vk::enumerateInstanceLayerProperties();
 
     for (const char* layer_name : validation_layers) {
         bool found = false;
@@ -75,10 +73,10 @@ vk::Result check_validation_layers() {
         }
 
         if (!found) 
-            return vk::Result::eErrorExtensionNotPresent;
+            return false;
     }
 
-    return vk::Result::eSuccess;
+    return true;
 }
 
 std::vector<const char*> get_required_extensions() {
@@ -133,9 +131,7 @@ bool is_device_suitable(const vk::PhysicalDevice& device, const vk::SurfaceKHR& 
 }
 
 bool check_device_extensions_support(const vk::PhysicalDevice& device) {
-    auto [ result, extensions ] = device.enumerateDeviceExtensionProperties();
-    if (result != vk::Result::eSuccess) 
-        throw std::runtime_error("Can't find available extension");
+    auto extensions = device.enumerateDeviceExtensionProperties();
 
     std::set<std::string> required_extensions(device_extensions.begin(), device_extensions.end());
     for (const auto& extension : extensions) {
@@ -146,26 +142,11 @@ bool check_device_extensions_support(const vk::PhysicalDevice& device) {
 }
 
 SwapChainSupportDetails query_swapchain_support(const vk::PhysicalDevice& phy_device, const vk::SurfaceKHR& surface) {
-    SwapChainSupportDetails details;
-
-    auto [ result1, capabilities ] = phy_device.getSurfaceCapabilitiesKHR(surface);
-    if (vk::Result::eSuccess != result1)
-        throw std::runtime_error("Capability can not be accessed");
-    details.capabilities = std::move(capabilities);
-
-    auto [ result2, formats ] = phy_device.getSurfaceFormatsKHR(surface);
-    if (vk::Result::eSuccess != result2) 
-        throw std::runtime_error("Surface format can not be accessed");
-    std::cout << "format size: " << formats.size() << "\n";
-    details.formats = std::move(formats);
-
-    auto [ result3, modes ] = phy_device.getSurfacePresentModesKHR(surface);
-    if (vk::Result::eSuccess != result3) 
-        throw std::runtime_error("Present mode can not be accessed");
-    std::cout << "mode size: " << modes.size() << "\n";
-    details.present_modes = std::move(modes);
-
-    return details;
+    return SwapChainSupportDetails {
+        .capabilities = phy_device.getSurfaceCapabilitiesKHR(surface),
+        .formats = phy_device.getSurfaceFormatsKHR(surface),
+        .present_modes = phy_device.getSurfacePresentModesKHR(surface)
+    };
 }
 
 
@@ -223,8 +204,5 @@ vk::ShaderModule create_shader_module(const vk::Device& device, const std::vecto
         .pCode = reinterpret_cast<const uint32_t*>(buffer.data())
     };
 
-    auto [ result, sm ] = device.createShaderModule(sm_create_info);
-    if (result != vk::Result::eSuccess)
-        throw std::runtime_error(to_string(result));
-    return sm;
+    return device.createShaderModule(sm_create_info);
 }

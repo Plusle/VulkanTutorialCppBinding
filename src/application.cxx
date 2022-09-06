@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <limits>
 #include <set>
+#include <array>
 
 void Application::run() {
     init();
@@ -42,7 +43,9 @@ void Application::cleanup() {
 
     for (const auto& image_view : m_image_views)
         m_device.destroyImageView(image_view);
-
+    m_device.destroyPipeline(m_pipeline);
+    m_device.destroyPipelineLayout(m_pipeline_layout);
+    m_device.destroyRenderPass(m_render_pass);
     m_device.destroySwapchainKHR(m_swapchain);
     m_device.destroy();
     m_inst.destroySurfaceKHR(m_surface);
@@ -60,6 +63,7 @@ void Application::init_vulkan() {
     create_device();
     create_swapchain();
     create_image_view();
+    create_render_pass();
     create_pipeline();
 }
 
@@ -70,12 +74,11 @@ void Application::setup_debugger() {
     vk::DebugUtilsMessengerCreateInfoEXT messenger_info
         = get_messenger_create_info();
 
-    auto messenger_result = m_inst.createDebugUtilsMessengerEXT(messenger_info);
-    m_db_messenger = messenger_result.value;
+    m_db_messenger = m_inst.createDebugUtilsMessengerEXT(messenger_info);
 }
 
 void Application::create_instance() {
-    if (enable_validation_layers && check_validation_layers() != vk::Result::eSuccess)
+    if (enable_validation_layers && !check_validation_layers())
         throw std::runtime_error("Requested validation layer(s) available.");
 
     vk::ApplicationInfo appinfo {
@@ -104,17 +107,12 @@ void Application::create_instance() {
             .setPNext(nullptr);
     }
     
-    auto [ result, inst ] = vk::createInstance(info);
-    if (result != vk::Result::eSuccess)
-        throw std::runtime_error("Failed to create Vulkan instance.");
-    m_inst = std::move(inst);
+    m_inst = vk::createInstance(info);
 }
 
 void Application::select_physical_device() {
-    auto [ result, available_devices ] = m_inst.enumeratePhysicalDevices();
-    if (result != vk::Result::eSuccess)
-        throw std::runtime_error("Can't find an available GPU");
-
+    auto available_devices = m_inst.enumeratePhysicalDevices();
+    
     for (const auto& device : available_devices) {
         if (is_device_suitable(device, m_surface)) {
             m_phy_device = device;
@@ -159,14 +157,8 @@ void Application::create_device() {
         device_create_info.setEnabledLayerCount(0);
     }
 
-    auto [ result, device ] = m_phy_device.createDevice(device_create_info);
-    if (result != vk::Result::eSuccess) {
-        std::cerr << to_string(result) << '\n';
-        std::exit(-1);
-    }
-
-    m_device = std::move(device);
-    m_queue = device.getQueue(indices.graphics.value(), 0);
+    m_device = m_phy_device.createDevice(device_create_info);
+    m_queue = m_device.getQueue(indices.graphics.value(), 0);
 }
 
 void Application::create_surface() {
@@ -175,12 +167,7 @@ void Application::create_surface() {
         .hwnd = glfwGetWin32Window(m_window)
     };
     
-    auto [ result, surface ] = m_inst.createWin32SurfaceKHR(surface_create_info);
-    if (result != vk::Result::eSuccess) {
-        std::cerr << to_string(result) << '\n';
-        std::exit(-1);
-    }
-    m_surface = std::move(surface);
+    m_surface = m_inst.createWin32SurfaceKHR(surface_create_info);
 }
 
 void Application::create_swapchain() {
@@ -229,17 +216,11 @@ void Application::create_swapchain() {
         .setPresentMode(present)
         .setClipped(static_cast<vk::Bool32>(true));
 
-    auto [ result1, sc ] = m_device.createSwapchainKHR(swapchain_create_info);
-    if (result1 != vk::Result::eSuccess)
-        throw std::runtime_error(to_string(result1));
-    m_swapchain = std::move(sc);
+    m_swapchain = m_device.createSwapchainKHR(swapchain_create_info);
     m_extent = extent;
     m_format = format.format;
 
-    auto [ result2, imgs ] = m_device.getSwapchainImagesKHR(m_swapchain);\
-    if (result2 != vk::Result::eSuccess)
-        throw std::runtime_error(to_string(result2));
-    m_images = std::move(imgs);
+    m_images = m_device.getSwapchainImagesKHR(m_swapchain);
 }
 
 void Application::create_image_view() {
@@ -263,20 +244,51 @@ void Application::create_image_view() {
                 .layerCount = 1
             }           
         };
-        auto [ result, view ] = m_device.createImageView(im_create_info);
-        if (result != vk::Result::eSuccess) 
-            throw std::runtime_error(to_string(result));
-        m_image_views[i] = std::move(view);
+        m_image_views[i] = m_device.createImageView(im_create_info);
     }
 }
 
+void Application::create_render_pass() {
+    vk::AttachmentDescription color_attachment {
+        .format = m_format,
+        .samples = vk::SampleCountFlagBits::e1,
+        .loadOp = vk::AttachmentLoadOp::eClear,
+        .storeOp = vk::AttachmentStoreOp::eStore,
+        .stencilLoadOp = vk::AttachmentLoadOp::eDontCare,
+        .stencilStoreOp = vk::AttachmentStoreOp::eDontCare,
+        .initialLayout = vk::ImageLayout::eUndefined,
+        .finalLayout = vk::ImageLayout::ePresentSrcKHR
+    
+    };
+
+    vk::AttachmentReference color_attach_ref {
+        .attachment = 0,
+        .layout = vk::ImageLayout::eAttachmentOptimal
+    };
+
+    vk::SubpassDescription subpass {
+        .pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &color_attach_ref
+    };
+
+    vk::RenderPassCreateInfo render_pass_create_info {
+        .attachmentCount = 1,
+        .pAttachments = &color_attachment,
+        .subpassCount = 1,
+        .pSubpasses = &subpass
+    };
+
+    m_render_pass = m_device.createRenderPass(render_pass_create_info);
+}
+
 void Application::create_pipeline() {
-    std::vector<char> vert_shader = read_file("../shader/binary/vert.spv");
-    std::vector<char> frag_shader = read_file("../shader/binary/frag.spv");
+    std::vector<char> vert_shader = read_file("E:/code-cpp/TestVulkan/shader/binary/vert.spv");
+    std::vector<char> frag_shader = read_file("E:/code-cpp/TestVulkan/shader/binary/frag.spv");
     vk::ShaderModule vs = create_shader_module(m_device, vert_shader);
     vk::ShaderModule fs = create_shader_module(m_device, frag_shader);
 
-    vk::PipelineShaderStageCreateInfo stagets[] = {
+    vk::PipelineShaderStageCreateInfo stages[] = {
         vk::PipelineShaderStageCreateInfo {
             .stage = vk::ShaderStageFlagBits::eVertex,
             .module = vs,
@@ -288,4 +300,90 @@ void Application::create_pipeline() {
             .pName = "main"
         }
     };
+
+    vk::PipelineVertexInputStateCreateInfo vertex_input_create_info {
+        .vertexBindingDescriptionCount = 0,
+        .vertexAttributeDescriptionCount = 0
+    };
+
+    vk::PipelineInputAssemblyStateCreateInfo input_assembly_create_info {
+        .topology = vk::PrimitiveTopology::eTriangleList,
+        .primitiveRestartEnable = static_cast<vk::Bool32>(false)
+    };
+
+    vk::PipelineViewportStateCreateInfo viewport_create_info {
+        .viewportCount = 1,
+        .scissorCount = 1
+    };
+
+    vk::PipelineRasterizationStateCreateInfo rasterization_create_info {
+        .depthClampEnable = static_cast<vk::Bool32>(false),
+        .rasterizerDiscardEnable = static_cast<vk::Bool32>(false),
+        .polygonMode = vk::PolygonMode::eFill,
+        .cullMode = vk::CullModeFlagBits::eBack,
+        .frontFace = vk::FrontFace::eClockwise,
+        .depthBiasEnable = static_cast<vk::Bool32>(false),
+        .lineWidth = 1.0f
+    };
+
+    vk::PipelineMultisampleStateCreateInfo multisampling_create_info {
+        .rasterizationSamples = vk::SampleCountFlagBits::e1,
+        .sampleShadingEnable = static_cast<vk::Bool32>(false)
+    };
+
+    vk::PipelineColorBlendAttachmentState blend_attach_create_info {
+        .blendEnable = static_cast<vk::Bool32>(false),
+        .colorWriteMask = vk::ColorComponentFlagBits::eR
+                        | vk::ColorComponentFlagBits::eG
+                        | vk::ColorComponentFlagBits::eB
+                        | vk::ColorComponentFlagBits::eA
+    };
+
+    vk::PipelineColorBlendStateCreateInfo blend_state_create_info {
+        .logicOpEnable = static_cast<vk::Bool32>(false),
+        .logicOp = vk::LogicOp::eCopy,
+        .attachmentCount = 1,
+        .pAttachments = &blend_attach_create_info,
+        .blendConstants = std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 0.0f }
+    };
+
+    std::vector<vk::DynamicState> dynamic_states {
+        vk::DynamicState::eViewport,
+        vk::DynamicState::eScissor
+    };
+
+    vk::PipelineDynamicStateCreateInfo state_create_info {
+        .dynamicStateCount = static_cast<uint32_t>(dynamic_states.size()),
+        .pDynamicStates = dynamic_states.data()
+    };
+
+    vk::PipelineLayoutCreateInfo pipeline_layout_create_info {
+        .setLayoutCount = 0,
+        .pushConstantRangeCount = 0
+    };
+
+    m_pipeline_layout = m_device.createPipelineLayout(pipeline_layout_create_info);
+
+    vk::GraphicsPipelineCreateInfo pipeline_create_info {
+        .stageCount = 2,
+        .pStages = stages,
+        .pVertexInputState = &vertex_input_create_info,
+        .pInputAssemblyState = &input_assembly_create_info,
+        .pViewportState = &viewport_create_info,
+        .pRasterizationState = &rasterization_create_info,
+        .pMultisampleState = &multisampling_create_info,
+        .pDepthStencilState = nullptr,
+        .pColorBlendState = &blend_state_create_info,
+        .pDynamicState = &state_create_info,
+        .layout = m_pipeline_layout,
+        .renderPass = m_render_pass,
+        .subpass = 0,
+        .basePipelineHandle = nullptr,
+        .basePipelineIndex = -1
+    };
+    // auto pipelines = m_device.createGraphicsPipelines(VK_NULL_HANDLE, std::array<vk::GraphicsPipelineCreateInfo, 1>{pipeline_create_info});
+    // m_pipeline = *(pipelines.cbegin());
+    m_pipeline = m_device.createGraphicsPipeline(VK_NULL_HANDLE, pipeline_create_info).value;
+    m_device.destroyShaderModule(vs);
+    m_device.destroyShaderModule(fs);
 }

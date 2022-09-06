@@ -22,6 +22,7 @@ private:
     void create_surface();
     void create_swapchain();
     void create_image_view();
+    void create_render_pass();
     void create_pipeline();
 
 
@@ -42,5 +43,7 @@ private:
     vk::Extent2D m_extent;
     std::vector<vk::Image> m_images;
     std::vector<vk::ImageView> m_image_views;
+    vk::RenderPass m_render_pass;
+    vk::PipelineLayout m_pipeline_layout;
     vk::Pipeline m_pipeline;
 };
